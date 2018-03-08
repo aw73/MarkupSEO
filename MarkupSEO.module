@@ -957,7 +957,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 
 			$('{$titleFieldsSelectors},input[name=seo_title]').keyup(function(){
 				$.each([$titleFieldsNames],function(index, name) {
-					value = $('input[name='+ name +']').val();
+					value = $('input[name=seo_'+ name +']').val();
 					if (value != '') {
 						$('.SEO_google_title').html(value);
 						return false;
