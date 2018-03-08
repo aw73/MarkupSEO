@@ -64,8 +64,10 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		return array(
 			'seo_tab',
 			'seo_title',
+			'seo_og_title',
 			'seo_keywords',
 			'seo_description',
+			'seo_og_description',
 			'seo_image',
 			'seo_robots',
 			'seo_custom',
@@ -111,6 +113,8 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		// frontend hooks
 		if($this->page->template != 'admin' && in_array($this->page->template->name, $this->includeTemplates)) {
 			$this->addHookProperty("Page::seo", $this, 'hookFrontendPage');
+			$this->addHookProperty("Page::customHead", $this, 'hookFrontendCustomHead');
+			$this->addHookProperty("Page::customBody", $this, 'hookFrontendCustomBody');
 			$this->addHookProperty("Config::seo", $this, 'hookFrontendConfig');
 		}
 	}
@@ -124,8 +128,10 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		if($this->method != 'auto' || $this->page->template == 'admin' || !in_array($this->page->template->name, $this->includeTemplates)) return;
 
 		// inject rendered meta tags into page
-		$dataRendered = $this->page->seo->render;
-		$event->return = str_ireplace("</head>", $dataRendered.'</head>', $event->return);
+		$event->return = str_ireplace("</head>", $this->page->seo->render.$this->page->customHead.'</head>', $event->return);
+
+		// inject rendered custom body into page
+		$event->return = str_ireplace("</body>", $this->page->customBody.'</body>', $event->return);
 	}
 
 
@@ -288,9 +294,9 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 
 		if($configData['includeOpenGraph']) {
 			$pageData['og:site_name'] = $configData['sitename'];
-			$pageData['og:title'] = $pageData['title'];
+			$pageData['og:title'] = $pageData['og_title'] ?: $pageData['title'];
 			$pageData['og:url'] = $pageData['canonical'];
-			$pageData['og:description'] = $pageData['description'];
+			$pageData['og:description'] = $pageData['og_description'] ?: $pageData['description'];
 			$pageData['og:type'] = 'website'; // TODO: Add more options
 			$pageData['og:image'] = $pageData['image'];
 		}
@@ -299,9 +305,9 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		if($configData['includeTwitter']) {
 			$pageData['twitter:card'] = 'summary'; // TODO: Add more options
 			$pageData['twitter:site'] = '@'.$configData['twitterUsername'];
-			$pageData['twitter:title'] = $pageData['title'];
+			$pageData['twitter:title'] = $pageData['og:title'];
 			$pageData['twitter:url'] = $pageData['canonical'];
-			$pageData['twitter:description'] = $pageData['description'];
+			$pageData['twitter:description'] = $pageData['og:description'];
 			$pageData['twitter:image'] = $pageData['image'];
 		}
 
@@ -358,7 +364,6 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 
 
 		// add "render"
-		$rendered = '';
 		foreach($pageData as $name => $content) {
 
 			switch($name) {
@@ -366,16 +371,16 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 					break;
 				case 'title':
 					if($this->titleFormat == '') break;
-					$rendered .= '<title>'.$this->parseTitle($page, $content).'</title>'.PHP_EOL;
+					$renderedHead .= '<title>'.$this->parseTitle($page, $content).'</title>'.PHP_EOL;
 					break;
 				case 'canonical':
-					$rendered .= '<link rel="canonical" href="'.$content.'" />'.PHP_EOL;
+					$renderedHead .= '<link rel="canonical" href="'.$content.'" />'.PHP_EOL;
 					break;
 				default:
 					if (strstr($name, 'og:')) {
-						$rendered .= '<meta property="'.$name.'" content="'.$content.'" />'.PHP_EOL;
+						$renderedHead .= '<meta property="'.$name.'" content="'.$content.'" />'.PHP_EOL;
 					} else {
-						$rendered .= '<meta name="'.$name.'" content="'.$content.'" />'.PHP_EOL;
+						$renderedHead .= '<meta name="'.$name.'" content="'.$content.'" />'.PHP_EOL;
 					}
 					break;
 			}
@@ -383,21 +388,32 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		}
 
 		// replace whitespaces and add analytics code
-		$rendered .= preg_replace('/^\s+|\s+$/m', '', $googleAnalytics).PHP_EOL;
-		$rendered .= preg_replace('/^\s+|\s+$/m', '', $piwikAnalytics).PHP_EOL;
+		$renderedHead .= preg_replace('/^\s+|\s+$/m', '', $googleAnalytics).PHP_EOL;
+		$renderedHead .= preg_replace('/^\s+|\s+$/m', '', $piwikAnalytics).PHP_EOL;
 
 		if($this->addWhitespace) {
-			$renderedTmp = '';
-			foreach(explode(PHP_EOL, $rendered) as $line) {
-				$renderedTmp .= "\t".$line.PHP_EOL;
+			$renderedHeadTmp = '';
+			foreach(explode(PHP_EOL, $renderedHead) as $line) {
+				$renderedHeadTmp .= "\t".$line.PHP_EOL;
 			}
-			$rendered = $renderedTmp;
+			$renderedHead = $renderedHeadTmp;
 		}
 
-		$pageData['render'] = $pageData['rendered'] = $rendered;
+		$pageData['render'] = $pageData['rendered'] = $renderedHead;
 		$event->return = (object)$pageData;
 	}
 
+
+	public function hookFrontendCustomHead(HookEvent $event) {
+		$page = wire('pages')->get($event->object->id);
+		$event->return = $page->seo_custom_head.PHP_EOL;
+	}
+
+
+	public function hookFrontendCustomBody(HookEvent $event) {
+		$page = wire('pages')->get($event->object->id);
+		$event->return = $page->seo_custom_body.PHP_EOL;
+	}
 
 
 	private function getParentValue($page, $what = '') {
@@ -424,6 +440,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 
 
 	private function parseCustom($custom) {
+
 		if(trim($custom) == '') return;
 
 		$return = array();
@@ -1011,6 +1028,17 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		}
 
 
+		if(!$fields->get('seo_og_title')) {
+			$field = new Field;
+			$field->type = $this->modules->get("FieldtypeText");
+			$field->name = "seo_og_title";
+			$field->label = $this->_("OG Title");
+			$field->description = $this->_("A good length for a title is 60 characters.");
+			$field->tags = 'seo';
+			$field->save();
+		}
+
+
 		if(!$fields->get('seo_keywords')) {
 			$field = new Field;
 			$field->type = $this->modules->get("FieldtypeText");
@@ -1027,6 +1055,17 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 			$field->type = $this->modules->get("FieldtypeText");
 			$field->name = "seo_description";
 			$field->label = $this->_("Description");
+			$field->description = $this->_("A good length for a description is 160 characters.");
+			$field->tags = 'seo';
+			$field->save();
+		}
+
+
+		if(!$fields->get('seo_og_description')) {
+			$field = new Field;
+			$field->type = $this->modules->get("FieldtypeText");
+			$field->name = "seo_og_description";
+			$field->label = $this->_("OG Description");
 			$field->description = $this->_("A good length for a description is 160 characters.");
 			$field->tags = 'seo';
 			$field->save();
@@ -1066,6 +1105,31 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 			$field->save();
 		}
 
+
+		if(!$fields->get('seo_custom_head')) {
+			$field = new Field;
+			$field->type = $this->modules->get("FieldtypeTextarea");
+			$field->name = "seo_custom_head";
+			$field->label = $this->_("Custom Head");
+			$field->description = $this->_("If you want to add other code to the <head>, you can do it here.");
+			//$field->notes = $this->_('Please use this schema: name := content. One tag per line. Special characters are only allowed in the content part and get converted to HTML.');
+			$field->tags = 'seo';
+			$field->save();
+		}
+
+
+		if(!$fields->get('seo_custom_body')) {
+			$field = new Field;
+			$field->type = $this->modules->get("FieldtypeTextarea");
+			$field->name = "seo_custom_body";
+			$field->label = $this->_("Custom Body");
+			$field->description = $this->_("If you want to add other code to the <body>, you can do it here.");
+			//$field->notes = $this->_('Please use this schema: name := content. One tag per line. Special characters are only allowed in the content part and get converted to HTML.');
+			$field->tags = 'seo';
+			$field->save();
+		}
+
+
 		if(!$fields->get('seo_robots')) {
 			$field = new Field;
 			$field->type = wire('modules')->get("FieldtypeText");
@@ -1089,7 +1153,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 				$template->fields->remove($field);
 				$template->fields->save();
 			}
-			$fields->delete($fields->get($field));
+			if($fields->get($field)) $fields->delete($fields->get($field));
 		}
 
 	}
