@@ -1132,13 +1132,16 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 
 		if(!$fields->get('seo_robots')) {
 			$field = new Field;
-			$field->type = wire('modules')->get("FieldtypeText");
+			$field->type = wire('modules')->get("FieldtypeOptions");
 			$field->name = "seo_robots";
 			$field->label = $this->_("Robots");
 			$field->description = $this->_("The robots settings will tell search engine which data they are allowed to include/index.");
 			$field->notes = $this->_('This overwrites the module\'s global setting for this page.');
 			$field->tags = 'seo';
 			$field->save();
+			$value = "index\nfollow\narchive\nnoindex\nnofollow\nnoarchive\nnosnippet\nnoodp\nnoydir";
+			$module = wire('modules')->get('FieldtypeOptions');
+			$module->manager->setOptionsString($field, $value, true);
 		}
 	}
 
