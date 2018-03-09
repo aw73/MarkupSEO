@@ -236,7 +236,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 						if($configData['title']) {
 							$pageData['title'] = $configData['title'];
 						}
-						elseif($configData[$templateName.'_titleSmart'] && $page->get(implode('|', $configData[$templateName.'_titleSmart'])) != '') {
+						elseif(isset($configData[$templateName.'_titleSmart']) && $configData[$templateName.'_titleSmart'] && $page->get(implode('|', $configData[$templateName.'_titleSmart'])) != '') {
 							$pageData['title'] = strip_tags($page->get(implode('|', $configData[$templateName.'_titleSmart'])));
 						}
 						elseif($configData['titleSmart'] && $page->get(implode('|', $configData['titleSmart'])) != '') {
@@ -247,7 +247,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 						if($configData['description']) {
 							$pageData['description'] = $configData['description'];
 						}
-						elseif($configData[$templateName.'_descriptionSmart'] && $page->get(implode('|', $configData[$templateName.'_descriptionSmart'])) != '') {
+						elseif(isset($configData[$templateName.'_descriptionSmart']) && $configData[$templateName.'_descriptionSmart'] && $page->get(implode('|', $configData[$templateName.'_descriptionSmart'])) != '') {
 							$pageData['description'] = $this->truncateDescription(strip_tags($page->get(implode('|', $configData[$templateName.'_descriptionSmart']))), $configData['descriptionLimit']);
 						}
 						elseif($configData['descriptionSmart'] && $page->get(implode('|', $configData['descriptionSmart'])) != '') {
@@ -255,7 +255,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 						}
 					break;
 					case 'image':
-						if($configData[$templateName.'_imageSmart'] && count($page->get(implode('|', $configData[$templateName.'_imageSmart']))) > 0) {
+						if(isset($configData[$templateName.'_imageSmart']) && $configData[$templateName.'_imageSmart'] && count($page->get(implode('|', $configData[$templateName.'_imageSmart']))) > 0) {
 							$imageFields = $page->get(implode('|', $configData[$templateName.'_imageSmart']));
 							try {
 								$pageData['image'] = $page->get(implode('|', $configData[$templateName.'_imageSmart']))->first()->httpUrl;
@@ -1147,10 +1147,10 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 
 		if(!$fields->get('seo_image')) {
 			$field = new Field;
-			$field->type = $this->modules->get("FieldtypeText");
+			$field->type = $this->modules->get("FieldtypeImage");
 			$field->name = "seo_image";
 			$field->label = $this->_("Image");
-			$field->description = $this->_('Please enter the URL (including "http://...") to a preview image.');
+			$field->extensions = 'gif jpg jpeg png svg';
 			$field->tags = 'seo';
 			$field->save();
 		}
