@@ -56,7 +56,8 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 			'piwikAnalyticsIDSite' => '',
 			'hardLimit'			=> 0,
 			'titleLimit'			=> '60',
-			'descriptionLimit'	=> '160'
+			'descriptionLimit'	=> '160',
+			'truncateDescription' => 1
 		);
 	}
 
@@ -250,7 +251,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 						if($configData['description']) {
 							$pageData['description'] = $configData['description'];
 						} elseif($configData['descriptionSmart'] && $page->get(implode('|', $configData['descriptionSmart'])) != '') {
-							$pageData['description'] = strip_tags($page->get(implode('|', $configData['descriptionSmart'])));
+							$pageData['description'] = $this->truncateDescription(strip_tags($page->get(implode('|', $configData['descriptionSmart']))), $configData['descriptionLimit']);
 						}
 					break;
 					case 'image':
@@ -452,6 +453,44 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 	}
 
 
+	/**
+	 * Truncate the description to a specific length and then truncate to avoid splitting any words.
+	 *
+	 */
+	private function truncateDescription($str, $maxlen) {
+
+		if(!$maxlen) return $str;
+
+		// note: tags are not stripped if itemDescriptionLength == 0 and stripTags == true
+		if($this->stripTags) $str = strip_tags($str);
+
+		if(strlen($str) < $maxlen) return $str;
+
+		$str = trim(substr($str, 0, $maxlen));
+
+		// boundaries that we can end the summary with
+		$boundaries = array('. ', '? ', '! ', ', ', '; ', '-');
+		$bestPos = 0;
+
+		foreach($boundaries as $boundary) {
+			if(($pos = strrpos($str, $boundary)) !== false) {
+				// find the boundary that is furthest in string
+				if($pos > $bestPos) $bestPos = $pos;
+			}
+		}
+
+		// determine if we should truncate to last punctuation or last space.
+		// if the last punctuation is further away then 1/4th the total length, then we'll
+		// truncate to the last space. Otherwise, we'll truncate to the last punctuation.
+		$spacePos = strrpos($str, ' ');
+		if($spacePos > $bestPos && (($spacePos - ($maxlen / 4)) > $bestPos)) $bestPos = $spacePos;
+
+		if(!$bestPos) $bestPos = $maxlen;
+
+		return trim(substr($str, 0, $bestPos+1));
+	}
+
+
 	private function parseCustom($custom) {
 
 		if(trim($custom) == '') return;
@@ -606,7 +645,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		$field->label = __("Title");
 		$field->description = __("A good length for a title is 60 characters.");
 		$field->value = $data['title'];
-		$field->columnWidth = '50%';
+		$field->columnWidth = 50;
 		$field->showIf = 'useParents=0';
 		$field->set('class', 'seo_autocomplete');
 		$fieldset->add($field);
@@ -617,7 +656,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		$field->description = __("We will use those fields (in this particular order) if you don't fill in the title field");
 		foreach($fields as $selectField) $field->addOption($selectField->name);
 		$field->value = $data['titleSmart'];
-		$field->columnWidth = '50%';
+		$field->columnWidth = 50;
 		$field->showIf = 'useParents=0';
 		$fieldset->add($field);
 
@@ -627,7 +666,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		$field->label = __("Keywords");
 		$field->description = "";
 		$field->value = $data['keywords'];
-		$field->columnWidth = '50%';
+		$field->columnWidth = 50;
 		$field->showIf = 'useParents=0';
 		$fieldset->add($field);
 
@@ -637,7 +676,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		$field->description = __("We will use those fields (in this particular order) if you don't fill in the keywords field");
 		foreach($fields as $selectField) $field->addOption($selectField->name);
 		$field->value = $data['keywordsSmart'];
-		$field->columnWidth = '50%';
+		$field->columnWidth = 50;
 		$field->showIf = 'useParents=0';
 		$fieldset->add($field);
 
@@ -647,7 +686,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		$field->label = __("Description");
 		$field->description = __("A good length for a description is 160 characters.");
 		$field->value = $data['description'];
-		$field->columnWidth = '50%';
+		$field->columnWidth = 50;
 		$field->showIf = 'useParents=0';
 		$field->set('class', 'seo_autocomplete');
 		$fieldset->add($field);
@@ -658,7 +697,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		$field->description = __("We will use those fields (in this particular order) if you don't fill in the description field");
 		foreach($fields as $selectField) $field->addOption($selectField->name);
 		$field->value = $data['descriptionSmart'];
-		$field->columnWidth = '50%';
+		$field->columnWidth = 50;
 		$field->showIf = 'useParents=0';
 		$fieldset->add($field);
 
@@ -668,7 +707,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		$field->label = __("Image");
 		$field->description = "";
 		$field->value = $data['image'];
-		$field->columnWidth = '50%';
+		$field->columnWidth = 50;
 		$field->showIf = 'useParents=0';
 		$fieldset->add($field);
 
@@ -678,7 +717,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		$field->description = __("We will use the first image from the specified image field.");
 		foreach($fields->find('type=FieldtypeImage|FieldtypeCroppableImage|FieldtypeImageFocusArea') as $selectField) $field->addOption($selectField->name);
 		$field->value = $data['imageSmart'];
-		$field->columnWidth = '50%';
+		$field->columnWidth = 50;
 		$field->showIf = 'useParents=0';
 		$fieldset->add($field);
 
@@ -689,7 +728,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		$field->label = __("Title Format");
 		$field->description = __("Use this field to adjust the title format. If left empty the <title> tag won't be included.");
 		$field->value = $data['titleFormat'];
-		$field->columnWidth = '50%';
+		$field->columnWidth = 50;
 		$field->notes = __('You can use: {title}, {sitename}');
 		$fieldset->add($field);
 
@@ -705,7 +744,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		$field->addOption('http', 'http');
 		$field->addOption('https', 'https');
 		$field->required = true;
-		$field->columnWidth = '50%';
+		$field->columnWidth = 50;
 		$fieldset->add($field);
 
 
@@ -742,7 +781,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		$field->label = __("Enforce hard limits?");
 		$field->description = __('This toggles the hard limit for any defined limits. If checked it prevents more than the defined characters to be entered.');
 		$field->attr('checked', $data['hardLimit'] == '1' ? 'checked' : '' );
-		$field->columnWidth = '33%';
+		$field->columnWidth = 25;
 		$fieldset->add($field);
 
 		$field = $modules->get("InputfieldInteger");
@@ -751,7 +790,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		$field->description = __('The character limit for the SEO title, recommended and default is 60.');
 		$field->value = $data['titleLimit'];
 		$field->attr('min', '1');
-		$field->columnWidth = '34%';
+		$field->columnWidth = 25;
 		$fieldset->add($field);
 
 		$field = $modules->get("InputfieldInteger");
@@ -760,7 +799,15 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		$field->description = __('The character limit for the SEO title, recommended and default is 160.');
 		$field->value = $data['descriptionLimit'];
 		$field->attr('min', '1');
-		$field->columnWidth = '33%';
+		$field->columnWidth = 25;
+		$fieldset->add($field);
+
+		$field = $modules->get("InputfieldCheckbox");
+		$field->name = "truncateDescription";
+		$field->label = __("Automatically truncate smart description");
+		$field->description = __("Automatically truncate smart description to the defined character limit.");
+		$field->attr('checked', $data['truncateDescription'] == '1' ? 'checked' : '' );
+		$field->columnWidth = 25;
 		$fieldset->add($field);
 
 
@@ -770,7 +817,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		$field->label = __("Include Generator?");
 		$field->description = __('This will include a meta tag called "generator" to show that this site was created with "ProcessWire 2.x.x".');
 		$field->attr('checked', $data['includeGenerator'] == '1' ? 'checked' : '' );
-		$field->columnWidth = '33%';
+		$field->columnWidth = 33;
 		$fieldset->add($field);
 
 		$field = $modules->get("InputfieldCheckbox");
@@ -778,7 +825,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		$field->label = __("Include (Basic) Open Graph?");
 		$field->description = __('The Open Graph meta tags are prefered by Facebook and several other sites.');
 		$field->attr('checked', $data['includeOpenGraph'] == '1' ? 'checked' : '' );
-		$field->columnWidth = '34%';
+		$field->columnWidth = 34;
 		$fieldset->add($field);
 
 		$field = $modules->get("InputfieldCheckbox");
@@ -786,7 +833,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		$field->label = __("Include (Basic) Twitter Cards?");
 		$field->description = __('This will help Twitter to extract the right data from your site.');
 		$field->attr('checked', $data['includeTwitter'] == '1' ? 'checked' : '' );
-		$field->columnWidth = '33%';
+		$field->columnWidth = 33;
 		$fieldset->add($field);
 
 		$field = $modules->get("InputfieldText");
@@ -794,7 +841,6 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		$field->label = __("Twitter Username");
 		$field->description = __('Your Twitter username (without "@") is needed for the "include Twitter" option.');
 		$field->value = $data['twitterUsername'];
-		$field->columnWidth = '100%';
 		$field->showIf = 'includeTwitter=1';
 		$fieldset->add($field);
 
@@ -806,7 +852,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		$field->addOption('auto', __('Automatically'));
 		$field->addOption('manual', __('Manually'));
 		$field->value = $data['method'];
-		$field->columnWidth = '50%';
+		$field->columnWidth = 50;
 		$fieldset->add($field);
 
 		// Add Whitespace
@@ -815,7 +861,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		$field->label = __("Add whitespace before tags?");
 		$field->description = __('This will add a little white space (one tab indent) before your meta tags in the "rendered" version. Perfectly if you use the automatically insert method.');
 		$field->attr('checked', $data['addWhitespace'] == '1' ? 'checked' : '' );
-		$field->columnWidth = '50%';
+		$field->columnWidth = 50;
 		$fieldset->add($field);
 
 
@@ -831,7 +877,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		$field->description = __("Google Analytics code will be embedded if this field is populated.");
 		$field->notes = __('How to find your code: https://support.google.com/analytics/answer/1008080. It should look like: UA-XXXXXXX-X.');
 		$field->value = $data['googleAnalytics'];
-		$field->columnWidth = '50%';
+		$field->columnWidth = 50;
 		$fieldset->add($field);
 
 		// Anonymize IP
@@ -840,7 +886,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		$field->label = __("Google Analytics: Anonymize IPs?");
 		$field->description = __('In some countrys (like Germany) anonymizing the visitors IP in Google Analytics is an obligatory setting for legal reasons.');
 		$field->attr('checked', $data['googleAnalyticsAnonymizeIP'] == '1' ? 'checked' : '' );
-		$field->columnWidth = '50%';
+		$field->columnWidth = 50;
 		$fieldset->add($field);
 
 
@@ -850,7 +896,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		$field->description = __("Piwik code will be embedded if both Piwik fields are populated.");
 		$field->value = $data['piwikAnalyticsUrl'];
 		$field->notes = __('Url without http:// or https://');
-		$field->columnWidth = '50%';
+		$field->columnWidth = 50;
 		$fieldset->add($field);
 
 		$field = $modules->get("InputfieldText");
@@ -858,7 +904,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		$field->label = __("Piwik Analytics IDSite");
 		$field->description = __("Piwik code will be embedded if both Piwik fields are populated.");
 		$field->value = $data['piwikAnalyticsIDSite'];
-		$field->columnWidth = '50%';
+		$field->columnWidth = 50;
 		$fieldset->add($field);
 
 
