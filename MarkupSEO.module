@@ -673,7 +673,10 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 			$field->name = trim($templateName."_titleSmart", '_');
 			$field->label = (is_object($template) && $template->id && $template->label ? $template->label : $templateName) . ' ' . __("Smart Title");
 			$field->description = __("We will use these fields (in this order) if you don't fill in the title field");
-			foreach($fields as $selectField) $field->addOption($selectField->name);
+			foreach($fields->find('type=FieldtypePageTitle|FieldtypePageTitleLanguage|FieldtypeText|FieldtypeTextLanguage|FieldtypeTextarea|FieldtypeTextareaLanguage, tags!=seo') as $selectField) {
+				if($template && !$template->hasField($selectField)) continue;
+				$field->addOption($selectField->name);
+			}
 			$field->value = $this->getSettingsValue('titleSmart', $templateName);
 			$field->columnWidth = 50;
 			$defaultsFieldset->add($field);
@@ -692,7 +695,10 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 			$field->name = trim($templateName."_descriptionSmart", '_');
 			$field->label = (is_object($template) && $template->id && $template->label ? $template->label : $templateName) . ' ' . __("Smart Description");
 			$field->description = __("We will use these fields (in this order) if you don't fill in the description field");
-			foreach($fields as $selectField) $field->addOption($selectField->name);
+			foreach($fields->find('type=FieldtypePageTitle|FieldtypePageTitleLanguage|FieldtypeText|FieldtypeTextLanguage|FieldtypeTextarea|FieldtypeTextareaLanguage, tags!=seo') as $selectField) {
+				if($template && !$template->hasField($selectField)) continue;
+				$field->addOption($selectField->name);
+			}
 			$field->value = $this->getSettingsValue('descriptionSmart', $templateName);
 			$field->columnWidth = 50;
 			$defaultsFieldset->add($field);
