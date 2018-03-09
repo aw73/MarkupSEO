@@ -30,8 +30,6 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 			'author' 			=> '',
 			'title' 				=> '',
 			'titleSmart' 		=> 'title',
-			'keywords' 			=> '',
-			'keywordsSmart' 		=> '',
 			'description' 		=> '',
 			'descriptionSmart' 	=> '',
 			'image' 				=> '',
@@ -66,7 +64,6 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 			'seo_tab',
 			'seo_title',
 			'seo_og_title',
-			'seo_keywords',
 			'seo_description',
 			'seo_og_description',
 			'seo_image',
@@ -239,13 +236,6 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 							$pageData['title'] = $configData['title'];
 						} elseif($configData['titleSmart'] && $page->get(implode('|', $configData['titleSmart'])) != '') {
 							$pageData['title'] = strip_tags($page->get(implode('|', $configData['titleSmart'])));
-						}
-					break;
-					case 'keywords':
-						if($configData['keywords']) {
-							$pageData['keywords'] = $configData['keywords'];
-						} elseif($configData['keywordsSmart'] && $page->get(implode('|', $configData['keywordsSmart'])) != '') {
-							$pageData['keywords'] = strip_tags($page->get(implode('|', $configData['keywordsSmart'])));
 						}
 					break;
 					case 'description':
@@ -657,26 +647,6 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		$field->description = __("We will use those fields (in this particular order) if you don't fill in the title field");
 		foreach($fields as $selectField) $field->addOption($selectField->name);
 		$field->value = $data['titleSmart'];
-		$field->columnWidth = 50;
-		$field->showIf = 'useParents=0';
-		$fieldset->add($field);
-
-		// Default Keywords
-		$field = $modules->get("InputfieldText");
-		$field->name = "keywords";
-		$field->label = __("Keywords");
-		$field->description = "";
-		$field->value = $data['keywords'];
-		$field->columnWidth = 50;
-		$field->showIf = 'useParents=0';
-		$fieldset->add($field);
-
-		$field = $modules->get("InputfieldAsmSelect");
-		$field->name = "keywordsSmart";
-		$field->label = __("Smart Keywords");
-		$field->description = __("We will use those fields (in this particular order) if you don't fill in the keywords field");
-		foreach($fields as $selectField) $field->addOption($selectField->name);
-		$field->value = $data['keywordsSmart'];
 		$field->columnWidth = 50;
 		$field->showIf = 'useParents=0';
 		$fieldset->add($field);
@@ -1095,7 +1065,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		}
 
 
-		// title, keywords, description, image, canonical, robots, custom
+		// title, description, image, canonical, robots, custom
 
 		if(!$fields->get('seo_title')) {
 			$field = new Field;
@@ -1114,17 +1084,6 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 			$field->name = "seo_og_title";
 			$field->label = $this->_("OG Title");
 			$field->description = $this->_("A good length for a title is 60 characters.");
-			$field->tags = 'seo';
-			$field->save();
-		}
-
-
-		if(!$fields->get('seo_keywords')) {
-			$field = new Field;
-			$field->type = $this->modules->get("FieldtypeText");
-			$field->name = "seo_keywords";
-			$field->label = $this->_("Keywords");
-			$field->description = "";
 			$field->tags = 'seo';
 			$field->save();
 		}
