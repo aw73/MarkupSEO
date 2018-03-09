@@ -197,6 +197,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 
 
 	private function getPageData($page, $format = true) {
+		$templateName = $page->template->name;
 		$pageData = array();
 		foreach($page->fields as $field) {
 			if(preg_match("%^seo_(.*)%Uis", $field->name) && $field->name != 'seo_tab' && $field->name != 'seo_tab_END') {
@@ -234,19 +235,35 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 					case 'title':
 						if($configData['title']) {
 							$pageData['title'] = $configData['title'];
-						} elseif($configData['titleSmart'] && $page->get(implode('|', $configData['titleSmart'])) != '') {
+						}
+						elseif($configData[$templateName.'_titleSmart'] && $page->get(implode('|', $configData[$templateName.'_titleSmart'])) != '') {
+							$pageData['title'] = strip_tags($page->get(implode('|', $configData[$templateName.'_titleSmart'])));
+						}
+						elseif($configData['titleSmart'] && $page->get(implode('|', $configData['titleSmart'])) != '') {
 							$pageData['title'] = strip_tags($page->get(implode('|', $configData['titleSmart'])));
 						}
 					break;
 					case 'description':
 						if($configData['description']) {
 							$pageData['description'] = $configData['description'];
-						} elseif($configData['descriptionSmart'] && $page->get(implode('|', $configData['descriptionSmart'])) != '') {
+						}
+						elseif($configData[$templateName.'_descriptionSmart'] && $page->get(implode('|', $configData[$templateName.'_descriptionSmart'])) != '') {
+							$pageData['description'] = $this->truncateDescription(strip_tags($page->get(implode('|', $configData[$templateName.'_descriptionSmart']))), $configData['descriptionLimit']);
+						}
+						elseif($configData['descriptionSmart'] && $page->get(implode('|', $configData['descriptionSmart'])) != '') {
 							$pageData['description'] = $this->truncateDescription(strip_tags($page->get(implode('|', $configData['descriptionSmart']))), $configData['descriptionLimit']);
 						}
 					break;
 					case 'image':
-						if($configData['imageSmart'] && count($page->get(implode('|', $configData['imageSmart']))) > 0) {
+						if($configData[$templateName.'_imageSmart'] && count($page->get(implode('|', $configData[$templateName.'_imageSmart']))) > 0) {
+							$imageFields = $page->get(implode('|', $configData[$templateName.'_imageSmart']));
+							try {
+								$pageData['image'] = $page->get(implode('|', $configData[$templateName.'_imageSmart']))->first()->httpUrl;
+							} catch (Exception $e) {
+								$pageData['image'] = $page->get(implode('|', $configData[$templateName.'_imageSmart']))->httpUrl;
+							}
+						}
+						elseif($configData['imageSmart'] && count($page->get(implode('|', $configData['imageSmart']))) > 0) {
 							$imageFields = $page->get(implode('|', $configData['imageSmart']));
 							try {
 								$pageData['image'] = $page->get(implode('|', $configData['imageSmart']))->first()->httpUrl;
@@ -630,68 +647,75 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		$field->attr('checked', $data['useParents'] == '1' ? 'checked' : '' );
 		$fieldset->add($field);
 
-		// Default Title
-		$field = $modules->get("InputfieldText");
-		$field->name = "title";
-		$field->label = __("Title");
-		$field->description = __("A good length for a title is 60 characters.");
-		$field->value = $data['title'];
-		$field->columnWidth = 50;
-		$field->showIf = 'useParents=0';
-		$field->set('class', 'seo_autocomplete');
-		$fieldset->add($field);
+		array_unshift($data['includeTemplates'], 'default');
+		foreach($data['includeTemplates'] as $templateName) {
 
-		$field = $modules->get("InputfieldAsmSelect");
-		$field->name = "titleSmart";
-		$field->label = __("Smart Title");
-		$field->description = __("We will use those fields (in this particular order) if you don't fill in the title field");
-		foreach($fields as $selectField) $field->addOption($selectField->name);
-		$field->value = $data['titleSmart'];
-		$field->columnWidth = 50;
-		$field->showIf = 'useParents=0';
-		$fieldset->add($field);
+			$template = wire('templates')->get($templateName);
+			$templateName = str_replace('default', '', $templateName);
 
-		// Default Description
-		$field = $modules->get("InputfieldText");
-		$field->name = "description";
-		$field->label = __("Description");
-		$field->description = __("A good length for a description is 160 characters.");
-		$field->value = $data['description'];
-		$field->columnWidth = 50;
-		$field->showIf = 'useParents=0';
-		$field->set('class', 'seo_autocomplete');
-		$fieldset->add($field);
+			$defaultsFieldset = $modules->get("InputfieldFieldset");
+			$defaultsFieldset->label = (is_object($template) && $template->id && $template->label ? $template->label : $templateName) . ' Defaults';
+			$defaultsFieldset->collapsed = Inputfield::collapsedYes;
+			$defaultsFieldset->showIf = 'useParents=0';
+			$fieldset->add($defaultsFieldset);
 
-		$field = $modules->get("InputfieldAsmSelect");
-		$field->name = "descriptionSmart";
-		$field->label = __("Smart Description");
-		$field->description = __("We will use those fields (in this particular order) if you don't fill in the description field");
-		foreach($fields as $selectField) $field->addOption($selectField->name);
-		$field->value = $data['descriptionSmart'];
-		$field->columnWidth = 50;
-		$field->showIf = 'useParents=0';
-		$fieldset->add($field);
+			// Default Title
+			$field = $modules->get("InputfieldText");
+			$field->name = trim($templateName."_title", '_');
+			$field->label = (is_object($template) && $template->id && $template->label ? $template->label : $templateName) . ' ' . __("Title");
+			$field->description = __("A good length for a title is 60 characters.");
+			$field->value = $this->getSettingsValue('title', $templateName);
+			$field->columnWidth = 50;
+			$field->set('class', 'seo_autocomplete');
+			$defaultsFieldset->add($field);
 
-		// Default Image
-		$field = $modules->get("InputfieldText");
-		$field->name = "image";
-		$field->label = __("Image");
-		$field->description = "";
-		$field->value = $data['image'];
-		$field->columnWidth = 50;
-		$field->showIf = 'useParents=0';
-		$fieldset->add($field);
+			$field = $modules->get("InputfieldAsmSelect");
+			$field->name = trim($templateName."_titleSmart", '_');
+			$field->label = (is_object($template) && $template->id && $template->label ? $template->label : $templateName) . ' ' . __("Smart Title");
+			$field->description = __("We will use these fields (in this order) if you don't fill in the title field");
+			foreach($fields as $selectField) $field->addOption($selectField->name);
+			$field->value = $this->getSettingsValue('titleSmart', $templateName);
+			$field->columnWidth = 50;
+			$defaultsFieldset->add($field);
 
-		$field = $modules->get("InputfieldAsmSelect");
-		$field->name = "imageSmart";
-		$field->label = __("Smart Image");
-		$field->description = __("We will use the first image from the specified image field.");
-		foreach($fields->find('type=FieldtypeImage|FieldtypeCroppableImage|FieldtypeImageFocusArea') as $selectField) $field->addOption($selectField->name);
-		$field->value = $data['imageSmart'];
-		$field->columnWidth = 50;
-		$field->showIf = 'useParents=0';
-		$fieldset->add($field);
+			// Default Description
+			$field = $modules->get("InputfieldText");
+			$field->name = trim($templateName."_description", '_');
+			$field->label = (is_object($template) && $template->id && $template->label ? $template->label : $templateName) . ' ' . __("Description");
+			$field->description = __("A good length for a description is 160 characters.");
+			$field->value = $this->getSettingsValue('description', $templateName);
+			$field->columnWidth = 50;
+			$field->set('class', 'seo_autocomplete');
+			$defaultsFieldset->add($field);
 
+			$field = $modules->get("InputfieldAsmSelect");
+			$field->name = trim($templateName."_descriptionSmart", '_');
+			$field->label = (is_object($template) && $template->id && $template->label ? $template->label : $templateName) . ' ' . __("Smart Description");
+			$field->description = __("We will use these fields (in this order) if you don't fill in the description field");
+			foreach($fields as $selectField) $field->addOption($selectField->name);
+			$field->value = $this->getSettingsValue('descriptionSmart', $templateName);
+			$field->columnWidth = 50;
+			$defaultsFieldset->add($field);
+
+			// Default Image
+			$field = $modules->get("InputfieldText");
+			$field->name = trim($templateName."_image", '_');
+			$field->label = (is_object($template) && $template->id && $template->label ? $template->label : $templateName) . ' ' . __("Image");
+			$field->description = "";
+			$field->value = $this->getSettingsValue('image', $templateName);
+			$field->columnWidth = 50;
+			$defaultsFieldset->add($field);
+
+			$field = $modules->get("InputfieldAsmSelect");
+			$field->name = trim($templateName."_imageSmart", '_');
+			$field->label = (is_object($template) && $template->id && $template->label ? $template->label : $templateName) . ' ' . __("Smart Image");
+			$field->description = __("We will use the first image from the specified image field.");
+			foreach($fields->find('type=FieldtypeImage|FieldtypeCroppableImage|FieldtypeImageFocusArea') as $selectField) $field->addOption($selectField->name);
+			$field->value = $this->getSettingsValue('imageSmart', $templateName);
+			$field->columnWidth = 50;
+			$defaultsFieldset->add($field);
+
+		}
 
 		// title format
 		$field = $modules->get("InputfieldText");
@@ -941,6 +965,16 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		});
 		";
 		return '<script type="text/javascript">'.$code.'</script>';
+	}
+
+	private function getSettingsValue($name, $templateName) {
+		if($templateName != '' && isset($this->data[$templateName.'_'.$name])) {
+			$settingsValue = $this->data[$templateName.'_'.$name];
+		}
+		else {
+			$settingsValue = $this->data[$name];
+		}
+		return $settingsValue;
 	}
 
 	private function javascriptAutocomplete($page = null) {
