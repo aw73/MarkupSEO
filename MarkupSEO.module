@@ -139,6 +139,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 	public function hookCustomizeSeoTab(HookEvent $e) {
 		$page = $e->object->getPage();
 		$configData = wire('modules')->getModuleConfigData($this);
+		$pageData = $this->getPageData($page);
 
 		$titleField = (empty($configData['useParents']) or $configData['useParents'] == true) ? array('seo_title') : $configData['titleSmart'];
 		$title = '';
@@ -158,7 +159,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		$field->value = 	$this->javascriptCounter($configData['hardLimit'], $configData['titleLimit'], $configData['descriptionLimit']).
 										$this->javascriptAutocomplete($page).
 										$this->javascriptGooglePreview().
-										$this->getGooglePreview($title, $page->seo_canonical, $page->seo_description); // add javascript, too
+										$this->getGooglePreview($pageData['title'], $page->seo_canonical, $pageData['description']); // add javascript, too
 		$e->return->insertAfter($field, $e->return->get('seo_tab'));
 
 	}
