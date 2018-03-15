@@ -41,6 +41,8 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 			'canonicalProtocol' => 'auto',
 			'robots' 			=> '',
 			'custom' 			=> '',
+			'custom_head' 			=> '',
+			'custom_body' 			=> '',
 			'includeGenerator' 	=> 1,
 			'includeOpenGraph' 	=> 1,
 			'includeTwitter' 	=> 1,
