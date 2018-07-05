@@ -22,6 +22,9 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 	}
 
 
+	public $pageData = array();
+
+
 	/**
 	 * Default configuration
 	 *
@@ -39,7 +42,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 			'titleFormat' 		=> '',
 			'canonical' 			=> '',
 			'canonicalProtocol' => 'auto',
-			'robots' 			=> '',
+			'robots' 			=> array('index', 'follow'),
 			'custom' 			=> '',
 			'custom_head' 			=> '',
 			'custom_body' 			=> '',
@@ -197,12 +200,15 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 	public function hookFrontendPage(HookEvent $event) {
 		// get page seo data
 		$page = wire('pages')->get($event->object->id);
-
-		$event->return = (object) $this->getPageData($page);
+		$this->pageData = $this->getPageData($page);
+		$event->return = (object) $this->pageData;
 	}
 
 
 	private function getPageData($page, $format = true) {
+
+		if($this->pageData && $format === true) return $this->pageData;
+
 		$templateName = $page->template->name;
 		$pageData = array();
 		foreach($page->fields as $field) {
@@ -239,28 +245,37 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 				// use smart data or default data
 				switch($fieldKey) {
 					case 'title':
-						if($configData['title']) {
-							$pageData['title'] = $configData['title'];
+						if($configData[$templateName.'_title']) {
+							$pageData['title'] = $configData[$templateName.'_title'];
 						}
 						elseif(isset($configData[$templateName.'_titleSmart']) && $configData[$templateName.'_titleSmart'] && $page->get(implode('|', $configData[$templateName.'_titleSmart'])) != '') {
 							$pageData['title'] = strip_tags($page->get(implode('|', $configData[$templateName.'_titleSmart'])));
+						}
+						elseif($configData['title']) {
+							$pageData['title'] = $configData['title'];
 						}
 						elseif($configData['titleSmart'] && $page->get(implode('|', $configData['titleSmart'])) != '') {
 							$pageData['title'] = strip_tags($page->get(implode('|', $configData['titleSmart'])));
 						}
 					break;
 					case 'description':
-						if($configData['description']) {
-							$pageData['description'] = $configData['description'];
+						if($configData[$templateName.'_description']) {
+							$pageData['description'] = $configData[$templateName.'_description'];
 						}
 						elseif(isset($configData[$templateName.'_descriptionSmart']) && $configData[$templateName.'_descriptionSmart'] && $page->get(implode('|', $configData[$templateName.'_descriptionSmart'])) != '') {
 							$pageData['description'] = $this->truncateDescription(strip_tags($page->get(implode('|', $configData[$templateName.'_descriptionSmart']))), $configData['descriptionLimit']);
+						}
+						elseif($configData['description']) {
+							$pageData['description'] = $configData['description'];
 						}
 						elseif($configData['descriptionSmart'] && $page->get(implode('|', $configData['descriptionSmart'])) != '') {
 							$pageData['description'] = $this->truncateDescription(strip_tags($page->get(implode('|', $configData['descriptionSmart']))), $configData['descriptionLimit']);
 						}
 					break;
 					case 'image':
+						if($configData[$templateName.'_image']) {
+							$pageData['image'] = $configData[$templateName.'_image'];
+						}
 						if(isset($configData[$templateName.'_imageSmart']) && $configData[$templateName.'_imageSmart'] && count($page->get(implode('|', $configData[$templateName.'_imageSmart']))) > 0) {
 							$imageFields = $page->get(implode('|', $configData[$templateName.'_imageSmart']));
 							try {
@@ -268,6 +283,9 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 							} catch (Exception $e) {
 								$pageData['image'] = $page->get(implode('|', $configData[$templateName.'_imageSmart']))->httpUrl;
 							}
+						}
+						elseif($configData['image']) {
+							$pageData['image'] = $configData['image'];
 						}
 						elseif($configData['imageSmart'] && count($page->get(implode('|', $configData['imageSmart']))) > 0) {
 							$imageFields = $page->get(implode('|', $configData['imageSmart']));
@@ -277,36 +295,33 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 								$pageData['image'] = $page->get(implode('|', $configData['imageSmart']))->httpUrl;
 							}
 						}
-						if(!$pageData['image'] && $configData['image']) {
-							$pageData['image'] = $configData['image'];
+					break;
+					case 'custom':
+						if(isset($configData[$templateName.'_custom']) && $configData[$templateName.'_custom'] != '') {
+							$pageData['custom'] = $configData[$templateName.'_custom'];
+						}
+						elseif($configData['custom']) {
+							$pageData['custom'] = $configData['custom'];
 						}
 					break;
 					case 'custom_head':
-						if($configData['custom_head']) {
-							$pageData['custom_head'] = $configData['custom_head'];
-						}
-						elseif(isset($configData[$templateName.'_custom_head']) && $configData[$templateName.'_custom_head'] != '') {
+						if(isset($configData[$templateName.'_custom_head']) && $configData[$templateName.'_custom_head'] != '') {
 							$pageData['custom_head'] = $configData[$templateName.'_custom_head'];
 						}
-						elseif($configData['custom_head'] != '') {
+						elseif($configData['custom_head']) {
 							$pageData['custom_head'] = $configData['custom_head'];
 						}
 					break;
 					case 'custom_body':
-						if($configData['custom_body']) {
-							$pageData['custom_body'] = $configData['custom_body'];
-						}
-						elseif(isset($configData[$templateName.'_custom_body']) && $configData[$templateName.'_custom_body'] != '') {
+						if(isset($configData[$templateName.'_custom_body']) && $configData[$templateName.'_custom_body'] != '') {
 							$pageData['custom_body'] = $configData[$templateName.'_custom_body'];
 						}
-						elseif($configData['custom_body'] != '') {
+						elseif($configData['custom_body']) {
 							$pageData['custom_body'] = $configData['custom_body'];
 						}
 					break;
 				}
-
 			}
-
 
 		}
 
@@ -318,7 +333,23 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		if($configData['author']) $pageData['author'] = $configData['author'];
 
 		// add robots
-		if($configData['robots'] && empty($pageData['robots'])) $pageData['robots'] = implode(', ', $configData['robots']);
+		$pageDataRobots = array();
+		if(isset($pageData['robots']) && count($pageData['robots']) !== 0) {
+			foreach($pageData['robots'] as $option) {
+				$pageDataRobots[] = $option->title;
+			}
+		}
+		elseif(isset($configData[$templateName.'_robots']) && count($configData[$templateName.'_robots']) !== 0) {
+			foreach($configData[$templateName.'_robots'] as $option) {
+				$pageDataRobots[] = $option;
+			}
+		}
+		elseif(isset($configData['robots']) && count($configData['robots']) !== 0) {
+			foreach($configData['robots'] as $option) {
+				$pageDataRobots[] = $option;
+			}
+		}
+		$pageData['robots'] = implode(', ', $pageDataRobots);
 
 		// add opengraph and canonical
 		if(!$pageData['canonical']) {
@@ -354,17 +385,6 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 			$pageData['twitter:image'] = $pageData['image'];
 		}
 
-
-		//add custom
-		if($configData['custom']) {
-			$pageData['custom'] = $configData['custom'];
-		}
-		elseif(isset($configData[$templateName.'_custom']) && $configData[$templateName.'_custom'] != '') {
-			$pageData['custom'] = $configData[$templateName.'_custom'];
-		}
-		elseif($configData['custom'] != '') {
-			$pageData['custom'] = $configData['custom'];
-		}
 
 		if($format) {
 			$pageData['custom'] = (array)$this->parseCustom($pageData['custom']);
@@ -436,9 +456,13 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 					$renderedHead .= '<link rel="canonical" href="'.$content.'" />'.PHP_EOL;
 					break;
 				default:
-					if (strstr($name, 'og:')) {
+					if(strstr($name, 'og_')) {
+						// not sure why these og_ ones are here, but ignore because they are empty
+					}
+					elseif (strstr($name, 'og:')) {
 						$renderedHead .= '<meta property="'.$name.'" content="'.$content.'" />'.PHP_EOL;
-					} else {
+					}
+					else {
 						$renderedHead .= '<meta name="'.$name.'" content="'.$content.'" />'.PHP_EOL;
 					}
 					break;
@@ -761,6 +785,23 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 			$field->columnWidth = 50;
 			$defaultsFieldset->add($field);
 
+			// Robots
+			$field = $modules->get("InputfieldCheckboxes");
+			$field->name = trim($templateName."_robots", '_');
+			$field->label = (is_object($template) && $template->id && $template->label ? $template->label : $templateName) . ' ' . $this->_("Robots");
+			$field->description = __("The robots settings will tell search engines which data they are allowed to include/index.");
+			$field->addOption('index');
+			$field->addOption('follow');
+			$field->addOption('archive');
+			$field->addOption('noindex');
+			$field->addOption('nofollow');
+			$field->addOption('noarchive');
+			$field->addOption('nosnippet');
+			$field->addOption('noodp');
+			$field->addOption('noydir');
+			$field->value = $this->getSettingsValue('robots', $templateName);
+			$defaultsFieldset->add($field);
+
 			// Custom Meta Tags
 			$field = $modules->get("InputfieldTextarea");
 			$field->name = trim($templateName."_custom", '_');
@@ -818,23 +859,6 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		$field->columnWidth = 50;
 		$fieldset->add($field);
 
-
-		// Robots
-		$field = $modules->get("InputfieldAsmSelect");
-		$field->name = "robots";
-		$field->label = __("Robots");
-		$field->description = __("The robots settings will tell search engine which data they are allowed to include/index.");
-		$field->addOption('index');
-		$field->addOption('follow');
-		$field->addOption('archive');
-		$field->addOption('noindex');
-		$field->addOption('nofollow');
-		$field->addOption('noarchive');
-		$field->addOption('nosnippet');
-		$field->addOption('noodp');
-		$field->addOption('noydir');
-		$field->value = $data['robots'];
-		$fieldset->add($field);
 
 		// Limits
 		$field = $modules->get("InputfieldCheckbox");
@@ -1224,9 +1248,10 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		if(!$fields->get('seo_robots')) {
 			$field = new Field;
 			$field->type = wire('modules')->get("FieldtypeOptions");
+			$field->inputfieldClass = "InputfieldCheckboxes";
 			$field->name = "seo_robots";
 			$field->label = $this->_("Robots");
-			$field->description = $this->_("The robots settings will tell search engine which data they are allowed to include/index.");
+			$field->description = $this->_("The robots settings will tell search engines which data they are allowed to include/index.");
 			$field->notes = $this->_('This overwrites the module\'s global setting for this page.');
 			$field->tags = 'seo';
 			$field->save();
