@@ -234,10 +234,11 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		}
 
 		foreach($pageData as $fieldKey => $fieldValue) {
+
 			// if the field has content we can continue
 			if($fieldValue != '') continue;
 
-			// otherwise we try do add default content
+			// otherwise we try to add default content
 			if($configData['useParents']) {
 				// use parent data
 				$pageData[$fieldKey] = $this->getParentValue($page, $fieldKey);
@@ -365,14 +366,23 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 
 		}
 
-
 		if($configData['includeOpenGraph']) {
 			$pageData['og:site_name'] = $configData['sitename'];
 			$pageData['og:title'] = $pageData['og_title'] ?: $pageData['title'];
 			$pageData['og:url'] = $pageData['canonical'];
 			$pageData['og:description'] = $pageData['og_description'] ?: $pageData['description'];
 			$pageData['og:type'] = 'website'; // TODO: Add more options
-			$pageData['og:image'] = $pageData['image'];
+			if(is_object($pageData['image'])) {
+				try {
+					$imageUrl = $pageData['image']->first()->httpUrl;
+				} catch (Exception $e) {
+					$imageUrl = $pageData['image']->httpUrl;
+				}
+			}
+			else {
+				$imageUrl = $pageData['image'];
+			}
+			$pageData['og:image'] = $imageUrl;
 		}
 
 		// add twitter
@@ -382,7 +392,17 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 			$pageData['twitter:title'] = $pageData['og:title'];
 			$pageData['twitter:url'] = $pageData['canonical'];
 			$pageData['twitter:description'] = $pageData['og:description'];
-			$pageData['twitter:image'] = $pageData['image'];
+			if(is_object($pageData['image'])) {
+				try {
+					$imageUrl = $pageData['image']->first()->httpUrl;
+				} catch (Exception $e) {
+					$imageUrl = $pageData['image']->httpUrl;
+				}
+			}
+			else {
+				$imageUrl = $pageData['image'];
+			}
+			$pageData['twitter:image'] = $imageUrl;
 		}
 
 
@@ -454,6 +474,19 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 					break;
 				case 'canonical':
 					$renderedHead .= '<link rel="canonical" href="'.$content.'" />'.PHP_EOL;
+					break;
+				case 'image':
+					if(is_object($pageData['image'])) {
+						try {
+							$imageUrl = $content->first()->httpUrl;
+						} catch (Exception $e) {
+							$imageUrl = $content->httpUrl;
+						}
+					}
+					else {
+						$imageUrl = $content;
+					}
+					$renderedHead .= '<meta property="'.$name.'" content="'.$imageUrl.'" />'.PHP_EOL;
 					break;
 				default:
 					if(strstr($name, 'og_')) {
