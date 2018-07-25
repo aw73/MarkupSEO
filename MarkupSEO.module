@@ -568,7 +568,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		if(trim($custom) == '') return;
 
 		$return = array();
-		$lines = explode(PHP_EOL, $custom);
+		$lines = explode("\n", $custom);
 		foreach($lines as $line) {
 			list($key, $value) = explode(':=', $line);
 			$key = preg_replace('%[^A-Za-z0-9\-\.\:\_]+%', '', str_replace(' ', '-', trim($key)));
