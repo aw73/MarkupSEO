@@ -335,17 +335,17 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 
 		// add robots
 		$pageDataRobots = array();
-		if(isset($pageData['robots']) && count($pageData['robots']) !== 0) {
+		if(isset($pageData['robots']) && is_object($pageData['robots']) && count($pageData['robots']) !== 0) {
 			foreach($pageData['robots'] as $option) {
 				$pageDataRobots[] = $option->title;
 			}
 		}
-		elseif(isset($configData[$templateName.'_robots']) && count($configData[$templateName.'_robots']) !== 0) {
+		elseif(isset($configData[$templateName.'_robots']) && is_object($configData[$templateName.'_robots']) && count($configData[$templateName.'_robots']) !== 0) {
 			foreach($configData[$templateName.'_robots'] as $option) {
 				$pageDataRobots[] = $option;
 			}
 		}
-		elseif(isset($configData['robots']) && count($configData['robots']) !== 0) {
+		elseif(isset($configData['robots']) && is_object($configData['robots']) && count($configData['robots']) !== 0) {
 			foreach($configData['robots'] as $option) {
 				$pageDataRobots[] = $option;
 			}
