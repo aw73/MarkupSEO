@@ -14,7 +14,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 	public static function getModuleInfo() {
 		return array(
 			'title' => __('SEO'),
-			'version' => '0.8.7',
+			'version' => '0.9.0',
 			'summary' => __('The all-in-one SEO solution for ProcessWire.'),
 			'autoload' => true,
 			'requires' => array('ProcessWire>=2.4.0', 'PHP>=5.3.8')
@@ -101,29 +101,34 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 	 */
 	public function init() {
 		// frontend hooks
-		$this->addHookAfter("Page::render", $this, 'hookMethodAuto');
+		$this->wire()->addHookAfter("Page::render", $this, 'hookMethodAuto');
 	}
 
-	public function ready() {
-		// backend hooks (Fix by @peterfoeng)
-		if(@$this->page->process == 'ProcessPageEdit') {
-			$editedPage = wire('pages')->get($this->wire('config')->input->get->id);
 
-			if(!($editedPage instanceof NullPage)) {
-				if(in_array($editedPage->template->name, $this->includeTemplates)) {
-					$this->addHookAfter("ProcessPageEdit::buildFormContent", $this, 'hookCustomizeSeoTab');
+	public function ready() {
+
+		if($this->wire('page')->process == 'ProcessPageEdit') {
+			// get page id from edited page id url parameter or Tracy console pid parameter
+			// the Tracy option allows for calling $page->seo in the admin from the Console panel
+			$pid = $this->wire('input')->post('pid') ?: $this->wire('input')->get('id');
+			$p = $this->wire('pages')->get($pid);
+			if(!($p instanceof NullPage)) {
+				if(in_array($p->template->name, $this->includeTemplates)) {
+					$this->wire()->addHookAfter("ProcessPageEdit::buildFormContent", $this, 'hookCustomizeSeoTab');
 				}
 			}
 		}
+        else {
+            $p = $this->wire('page');
+        }
 
-
-		// frontend hooks
-		if($this->page->template != 'admin' && in_array($this->page->template->name, $this->includeTemplates)) {
-			$this->addHookProperty("Page::seo", $this, 'hookFrontendPage');
-			$this->addHookProperty("Page::customHead", $this, 'hookFrontendCustomHead');
-			$this->addHookProperty("Page::customBody", $this, 'hookFrontendCustomBody');
-			$this->addHookProperty("Config::seo", $this, 'hookFrontendConfig');
+		if($p->template != 'admin' && in_array($p->template->name, $this->includeTemplates)) {
+			$this->wire()->addHookProperty("Page::seo", $this, 'hookFrontendPage');
+			$this->wire()->addHookProperty("Page::customHead", $this, 'hookFrontendCustomHead');
+			$this->wire()->addHookProperty("Page::customBody", $this, 'hookFrontendCustomBody');
+			$this->wire()->addHookProperty("Config::seo", $this, 'hookFrontendConfig');
 		}
+
 	}
 
 
@@ -132,19 +137,19 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 	 *
 	 */
 	public function hookMethodAuto(HookEvent $event) {
-		if($this->method != 'auto' || $this->page->template == 'admin' || !in_array($this->page->template->name, $this->includeTemplates)) return;
+		if($this->method != 'auto' || $this->wire('page')->template == 'admin' || !in_array($this->wire('page')->template->name, $this->includeTemplates)) return;
 
 		// inject rendered meta tags into page
-		$event->return = str_ireplace("</head>", $this->page->seo->render.$this->page->customHead.'</head>', $event->return);
+		$event->return = str_ireplace("</head>", $this->wire('page')->seo->render.$this->wire('page')->customHead.'</head>', $event->return);
 
 		// inject rendered custom body into page
-		$event->return = str_ireplace("</body>", $this->page->customBody.'</body>', $event->return);
+		$event->return = str_ireplace("</body>", $this->wire('page')->customBody.'</body>', $event->return);
 	}
 
 
 	public function hookCustomizeSeoTab(HookEvent $e) {
 		$page = $e->object->getPage();
-		$configData = wire('modules')->getModuleConfigData($this);
+		$configData = $this->wire('modules')->getModuleConfigData($this);
 		$pageData = $this->getPageData($page);
 
 		$titleField = (empty($configData['useParents']) or $configData['useParents'] == true) ? array('seo_title') : $configData['titleSmart'];
@@ -176,7 +181,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 	 *
 	 */
 	private function getGooglePreview($title, $url, $description) {
-		$page = wire('pages')->get($this->wire('input')->get->id);
+		$page = $this->wire('pages')->get($this->wire('input')->get->id);
 
 		$html  = '<div class="SEO_google_wrapper"><span class="SEO_google_title">'.($title ? $title : 'Title').'</span>';
 		$html .= '<span class="SEO_google_link">'.($url ? $url : $page->httpUrl).'</span>';
@@ -199,8 +204,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 	 */
 	public function hookFrontendPage(HookEvent $event) {
 		// get page seo data
-		$page = wire('pages')->get($event->object->id);
-		$this->pageData = $this->getPageData($page);
+		$this->pageData = $this->getPageData($event->object);
 		$event->return = (object) $this->pageData;
 	}
 
@@ -218,7 +222,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		}
 
 		// get config seo data
-		$configData = wire('modules')->getModuleConfigData($this);
+		$configData = $this->wire('modules')->getModuleConfigData($this);
 
 		// override styles for multisite module, if it's installed
 		if ($multiSite = $this->wire('modules')->getModule('Multisite', array('noPermissionCheck' => true, 'noInit' => true))) {
@@ -328,7 +332,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 
 
 		// add generator
-		if($configData['includeGenerator']) $pageData['generator'] = 'ProcessWire '.wire('config')->version;
+		if($configData['includeGenerator']) $pageData['generator'] = 'ProcessWire '.$this->wire('config')->version;
 
 		// add author
 		if($configData['author']) $pageData['author'] = $configData['author'];
@@ -355,7 +359,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		// add opengraph and canonical
 		if(!$pageData['canonical']) {
 			if($configData['canonicalProtocol'] == 'auto') {
-				if(wire('config')->https == true) $configData['canonicalProtocol'] = 'https';
+				if($this->wire('config')->https == true) $configData['canonicalProtocol'] = 'https';
 			}
 
 			if($configData['canonicalProtocol'] == 'https') {
@@ -510,15 +514,13 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 
 
 	public function hookFrontendCustomHead(HookEvent $event) {
-		$page = wire('pages')->get($event->object->id);
-		$pageData = $this->getPageData($page);
+		$pageData = $this->getPageData($event->object);
 		$event->return = $pageData['custom_head'].PHP_EOL;
 	}
 
 
 	public function hookFrontendCustomBody(HookEvent $event) {
-		$page = wire('pages')->get($event->object->id);
-		$pageData = $this->getPageData($page);
+		$pageData = $this->getPageData($event->object);
 		$event->return = $pageData['custom_body'].PHP_EOL;
 	}
 
@@ -593,7 +595,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		foreach($lines as $line) {
 			list($key, $value) = explode(':=', $line);
 			$key = preg_replace('%[^A-Za-z0-9\-\.\:\_]+%', '', str_replace(' ', '-', trim($key)));
-			$value = trim(wire('sanitizer')->text(html_entity_decode($value)));
+			$value = trim($this->wire('sanitizer')->text(html_entity_decode($value)));
 			$return[$key] = $value;
 		}
 
@@ -606,7 +608,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 	 *
 	 */
 	public function hookFrontendConfig(HookEvent $event) {
-		$moduleData = wire('modules')->getModuleConfigData($this);
+		$moduleData = $this->wire('modules')->getModuleConfigData($this);
 		$moduleData['custom'] = (array)$this->parseCustom($moduleData['custom']);
 		$moduleData['robots'] = is_array($moduleData['robots']) ? implode(', ', $moduleData['robots']) : $moduleData['robots'];
 
@@ -731,7 +733,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 		array_unshift($data['includeTemplates'], 'default');
 		foreach($data['includeTemplates'] as $templateName) {
 
-			$template = wire('templates')->get($templateName);
+			$template = $this->wire('templates')->get($templateName);
 			$templateName = str_replace('default', '', $templateName);
 
 			$defaultsFieldset = $modules->get("InputfieldFieldset");
@@ -1136,7 +1138,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 	}
 
 	private function javascriptGooglePreview($title, $url, $description) {
-		$configData = wire('modules')->getModuleConfigData($this);
+		$configData = $this->wire('modules')->getModuleConfigData($this);
 
 		$titleSmart = ($configData['useParents'] == true) ? array('seo_title') : $configData['titleSmart'];
 		$smartFieldFormat = function($fieldName) {
@@ -1185,7 +1187,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 
 	public function ___install() {
 
-		$fields = wire('fields');
+		$fields = $this->wire('fields');
 
 		// Tab stuff
 
@@ -1268,7 +1270,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 
 		if(!$fields->get('seo_robots')) {
 			$field = new Field;
-			$field->type = wire('modules')->get("FieldtypeOptions");
+			$field->type = $this->wire('modules')->get("FieldtypeOptions");
 			$field->inputfieldClass = "InputfieldCheckboxes";
 			$field->name = "seo_robots";
 			$field->label = $this->_("Robots");
@@ -1277,7 +1279,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 			$field->tags = 'seo';
 			$field->save();
 			$value = "index\nfollow\narchive\nnoindex\nnofollow\nnoarchive\nnosnippet\nnoodp\nnoydir";
-			$module = wire('modules')->get('FieldtypeOptions');
+			$module = $this->wire('modules')->get('FieldtypeOptions');
 			$module->manager->setOptionsString($field, $value, true);
 		}
 
@@ -1334,8 +1336,8 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 
 
 	public function ___uninstall() {
-		$fields = wire('fields');
-		$templates = wire('templates');
+		$fields = $this->wire('fields');
+		$templates = $this->wire('templates');
 
 		foreach(self::getDefaultFields() as $field) {
 			foreach($templates as $template) {
