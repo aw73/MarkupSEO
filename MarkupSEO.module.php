@@ -14,7 +14,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 	public static function getModuleInfo() {
 		return array(
 			'title' => __('SEO'),
-			'version' => '0.9.0',
+			'version' => '0.9.1',
 			'summary' => __('The all-in-one SEO solution for ProcessWire.'),
 			'autoload' => true,
 			'requires' => array('ProcessWire>=2.4.0', 'PHP>=5.3.8')
@@ -284,9 +284,9 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 						if(isset($configData[$templateName.'_imageSmart']) && $configData[$templateName.'_imageSmart'] && count($page->get(implode('|', $configData[$templateName.'_imageSmart']))) > 0) {
 							$imageFields = $page->get(implode('|', $configData[$templateName.'_imageSmart']));
 							try {
-								$pageData['image'] = $page->get(implode('|', $configData[$templateName.'_imageSmart']))->first()->httpUrl;
+								$pageData['image'] = $page->get(implode('|', $configData[$templateName.'_imageSmart']))->first();
 							} catch (Exception $e) {
-								$pageData['image'] = $page->get(implode('|', $configData[$templateName.'_imageSmart']))->httpUrl;
+								$pageData['image'] = $page->get(implode('|', $configData[$templateName.'_imageSmart']));
 							}
 						}
 						elseif(isset($configData['image']) && $configData['image'] != '') {
@@ -295,9 +295,9 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 						elseif($configData['imageSmart'] && count($page->get(implode('|', $configData['imageSmart']))) > 0) {
 							$imageFields = $page->get(implode('|', $configData['imageSmart']));
 							try {
-								$pageData['image'] = $page->get(implode('|', $configData['imageSmart']))->first()->httpUrl;
+								$pageData['image'] = $page->get(implode('|', $configData['imageSmart']))->first();
 							} catch (Exception $e) {
-								$pageData['image'] = $page->get(implode('|', $configData['imageSmart']))->httpUrl;
+								$pageData['image'] = $page->get(implode('|', $configData['imageSmart']));
 							}
 						}
 					break;
@@ -377,7 +377,11 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 			$pageData['og:description'] = $pageData['og_description'] ?: $pageData['description'];
 			$pageData['og:type'] = 'website'; // TODO: Add more options
 			if(is_object($pageData['image'])) {
-				$imageUrl = is_object($pageData['image']->first()) ? $pageData['image']->first()->httpUrl : $pageData['image']->httpUrl;
+				try {
+					$imageUrl = $pageData['image']->first();
+				} catch (Exception $e) {
+					$imageUrl = $pageData['image'];
+				}
 			}
 			else {
 				$imageUrl = $pageData['image'];
@@ -393,7 +397,11 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 			$pageData['twitter:url'] = $pageData['canonical'];
 			$pageData['twitter:description'] = $pageData['og:description'];
 			if(is_object($pageData['image'])) {
-				$imageUrl = is_object($pageData['image']->first()) ? $pageData['image']->first()->httpUrl : $pageData['image']->httpUrl;
+				try {
+					$imageUrl = $pageData['image']->first();
+				} catch (Exception $e) {
+					$imageUrl = $pageData['image'];
+				}
 			}
 			else {
 				$imageUrl = $pageData['image'];
@@ -473,7 +481,11 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
 					break;
 				case 'image':
 					if(is_object($pageData['image'])) {
-						$imageUrl = is_object($content->first()) ? $content->first()->httpUrl : $content->httpUrl;
+						try {
+							$imageUrl = $content->first();
+						} catch (Exception $e) {
+							$imageUrl = $content;
+						}
 					}
 					else {
 						$imageUrl = $content;
