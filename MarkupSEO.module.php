@@ -14,7 +14,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
     public static function getModuleInfo() {
         return array(
             'title' => __('SEO'),
-            'version' => '2.0.0',
+            'version' => '2.0.1',
             'summary' => __('The all-in-one SEO solution for ProcessWire.'),
             'autoload' => true,
             'requires' => array('ProcessWire>=2.4.0', 'PHP>=5.3.8')
@@ -291,7 +291,7 @@ class MarkupSEO extends WireData implements Module, ConfigurableModule {
                         elseif(isset($configData['image']) && $configData['image'] != '') {
                             $pageData['image'] = $this->createImageObject($configData[$templateName.'_image'], $page);
                         }
-                        elseif($configData['imageSmart'] && count($page->get(implode('|', $configData['imageSmart']))) > 0) {
+                        elseif(isset($configData['imageSmart']) && is_object($configData['imageSmart']) && count($page->get(implode('|', $configData['imageSmart']))) > 0) {
                             $imageFields = $page->get(implode('|', $configData['imageSmart']));
                             $pageData['image'] = $page->getUnformatted(implode('|', $configData['imageSmart']))->first();
                         }
